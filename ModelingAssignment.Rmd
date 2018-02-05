@@ -1,0 +1,140 @@
+---
+title: "Prediction Assignment"
+author: "Anton Kobelev"
+date: "January 31, 2018"
+output: html_document
+---
+
+## Loading Requirements
+
+```{r include=TRUE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+```
+
+
+## Executive Summary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+
+## Data
+
+The training data for this project is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+```{r include=TRUE}
+# Downloading the train and test datasets
+trUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+tUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainData <- read.csv(url(trUrl), na.strings=c("NA","#DIV/0!",""))
+testData <- read.csv(url(tUrl), na.strings=c("NA","#DIV/0!",""))
+
+# Initial dimention of datasets, before preprocessing
+dim(trainData)
+dim(testData)
+```
+
+
+## Expectations
+The outcome variable is "classe", which takes on values A, B, C, D or E. Our expected out-of-sample error should be small for the final model we select. The out-of-sample error is measured on the testing dataset.
+
+To ensure the results are reproducible, we will set the seed value to '12345'.
+
+We expect the dataset to contain a lot of missing values, N/As and other variables that are irrelevant to this exercise. The training dataset will need to be cleaned up in the preprocessing step below.
+
+
+## Preprocessing
+First step is to remove variables that have only one or very few unique values in both the training and testing datasets: 
+
+```{r include=TRUE}
+dataNZVtrain <- nearZeroVar(trainData)
+dataNZVtest <- nearZeroVar(testData)
+trainDataClean<-trainData[, -dataNZVtrain]
+testDataClean<-testData[,-dataNZVtrain]##
+dim(trainDataClean)
+dim(testDataClean)
+```
+
+Next we remove variables with mostly "N/A" values in both datasets:
+
+```{r include=TRUE}
+NAtrain<- sapply(trainDataClean, function(x) mean(is.na(x))) > 0.95
+trainDataClean <- trainDataClean[, NAtrain==FALSE]
+
+NAtest<- sapply(testDataClean, function(x) mean(is.na(x))) > 0.95
+testDataClean <- testDataClean[, NAtest==FALSE]
+
+dim(trainDataClean)
+dim(testDataClean)
+```
+
+Finally we remove the first four columns, as those are fields that are irrelevant to us making any prediction:
+
+```{r include=TRUE}
+finalDataTrain <- trainDataClean[, -c(1:5)]
+finalDataTest <- testDataClean[, -c(1:5)]
+dim(finalDataTrain)
+dim(finalDataTest)
+```
+
+Having finished the preprocessing both the training and the testing datasets have 55 variables each, and 19,622 and 20 observations respectively. The next step is to partition the training set into a train/validate partitions. We will do this in 70%/30% proportion. 
+
+```{r include=TRUE}
+inTrain  <- createDataPartition(finalDataTrain$classe, p=0.7, list=FALSE)
+trainSet <- finalDataTrain[inTrain, ]
+validateSet  <- finalDataTrain[-inTrain, ]
+```
+
+
+## Predictive Modeling
+
+We picked two models to apply to the training data and verify on the validation set. We picked one over the other based on the accuracy of the prediction, as indicated on the confusion matrix. The final model will be applied to the testing set. We first used the decision tree model and then the random forest method. 
+
+
+### Decision Trees
+The first model we applied to the training dataset is the decision trees model. It is arguably a better model for this type of data, as it is easy to interpret and it gives a better performance in nonlinear settings. Setting the seed to "12345" we train the model on the training data set and plot the results:
+
+```{r include=TRUE}
+set.seed(12345)
+decisionTree <- rpart(classe ~ ., data=trainSet, method="class")
+fancyRpartPlot(decisionTree)
+```
+
+We then attempt to predict the outcomes on the validation set. The resulting confusion matrix shows the predictions, as well as the accuracy.
+
+```{r include=TRUE}
+predictionTree <- predict(decisionTree, validateSet, type = "class")
+confusionMatrix(predictionTree, validateSet$classe)
+```
+
+The prediction accuracy is 0.834, which is fairly low, leading to a high out-of-sample error of 16.6%. We move on to the next model.
+
+
+### Random Forest
+
+Random forest model is ideal for non-bionominal outcomes and large sample sizes. We train the model on the training set and test the data on the validation set.
+
+```{r include=TRUE}
+randForest <- randomForest(classe ~. , data=trainSet)
+predictionForest <- predict(randForest, validateSet, type = "class")
+confusionMatrix(predictionForest, validateSet$classe)
+```
+
+We can see that the accruacy is 99.8%, which is very high. The out-of-sample error is low at 0.2%. This high level of accuracy does not require us to seek any other model, nor should we create a blend of several models to achieve a higher accuracy percentage.
+
+## Conclusion
+
+We chose the random forest model as it yields the lowest out-of-sample error of 0.2%.
+
+
+```{r include=TRUE}
+# Applying the prediction model to the test set
+predict(randForest, newdata=finalDataTest, type="class")
+```
