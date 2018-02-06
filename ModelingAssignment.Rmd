@@ -116,7 +116,7 @@ predictionTree <- predict(decisionTree, validateSet, type = "class")
 confusionMatrix(predictionTree, validateSet$classe)
 ```
 
-The prediction accuracy is 0.834, which is fairly low, leading to a high out-of-sample error of 16.6%. We move on to the next model.
+The prediction accuracy is 0.7307, which is fairly low, leading to a high out-of-sample error of 16.6%. We move on to the next model.
 
 
 ### Random Forest
@@ -129,7 +129,7 @@ predictionForest <- predict(randForest, validateSet, type = "class")
 confusionMatrix(predictionForest, validateSet$classe)
 ```
 
-We can see that the accruacy is 99.8%, which is very high. The out-of-sample error is low at 0.2%. This high level of accuracy does not require us to seek any other model, nor should we create a blend of several models to achieve a higher accuracy percentage.
+We can see that the accruacy is 99.7%, which is very high. The out-of-sample error is low at 0.2%. This high level of accuracy does not require us to seek any other model, nor should we create a blend of several models to achieve a higher accuracy percentage.
 
 ## Conclusion
 
